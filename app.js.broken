@@ -1,0 +1,546 @@
+const express = require('express');
+const session = require('express-session');
+const bcrypt = require('bcrypt');
+const multer = require('multer');
+const path = require('path');
+const fs = require('fs');
+const cors = require('cors');
+require('dotenv').config();
+
+const Database = require('./database');
+
+const app = express();
+const PORT = process.env.PORT || 3000;
+
+// Initialize database
+const db = new Database(process.env.DB_PATH);
+
+// Ensure upload directories exist
+const uploadDir = path.join(__dirname, 'uploads');
+const romsDir = path.join(__dirname, 'games', 'roms');
+if (!fs.existsSync(uploadDir)) {
+    fs.mkdirSync(uploadDir, { recursive: true });
+}
+if (!fs.existsSync(romsDir)) {
+    fs.mkdirSync(romsDir, { recursive: true });
+}
+
+// Multer configuration for file uploads
+const storage = multer.diskStorage({
+    destination: function (req, file, cb) {
+        cb(null, uploadDir);
+    },
+    filename: function (req, file, cb) {
+        // Sanitize filename
+        const sanitized = file.originalname.replace(/[^a-zA-Z0-9.-]/g, '_');
+        const timestamp = Date.now();
+        cb(null, `${timestamp}_${sanitized}`);
+    }
+});
+
+const fileFilter = (req, file, cb) => {
+    // Allowed ROM file extensions
+    const allowedTypes = [
+        '.nes', '.snes', '.smc', '.sfc',
+        '.gb', '.gbc', '.gba',
+        '.n64', '.z64', '.v64',
+        '.iso', '.cue', '.bin',
+        '.zip', '.7z', '.rar',
+        '.md', '.gen', '.smd',
+        '.32x', '.gg', '.sms'
+    ];
+    
+    const ext = path.extname(file.originalname).toLowerCase();
+    if (allowedTypes.includes(ext)) {
+        cb(null, true);
+    } else {
+        cb(new Error(`File type ${ext} not allowed`), false);
+    }
+};
+
+const upload = multer({ 
+    storage: storage,
+    fileFilter: fileFilter,
+    limits: {
+        fileSize: 500 * 1024 * 1024 // 500MB limit
+    }
+});
+
+// Middleware
+app.use(cors());
+app.use(express.json({ limit: '10mb' }));
+app.use(express.urlencoded({ extended: true, limit: '10mb' }));
+app.use(express.static(path.join(__dirname, 'web', 'static')));
+
+// Session configuration
+app.use(session({
+    secret: process.env.SESSION_SECRET,
+    resave: false,
+    saveUninitialized: false,
+    cookie: { 
+        secure: false,
+        maxAge: 24 * 60 * 60 * 1000
+    }
+}));
+
+// Authentication middleware
+function requireAuth(req, res, next) {
+    if (req.session && req.session.userId) {
+        next();
+    } else {
+        if (req.path.startsWith('/api/')) {
+            res.status(401).json({ error: 'Authentication required' });
+        } else {
+            res.redirect('/login');
+        }
+    }
+}
+
+function requireAdmin(req, res, next) {
+    if (req.session && req.session.userId && req.session.userRole === 'admin') {
+        next();
+    } else {
+        if (req.path.startsWith('/api/')) {
+            res.status(403).json({ error: 'Admin access required' });
+        } else {
+            res.redirect('/games');
+        }
+    }
+}
+
+// System mapping for file extensions
+const systemMapping = {
+    '.nes': 'nes',
+    '.snes': 'snes',
+    '.smc': 'snes',
+    '.sfc': 'snes',
+    '.gb': 'gb',
+    '.gbc': 'gbc',
+    '.gba': 'gba',
+    '.n64': 'n64',
+    '.z64': 'n64',
+    '.v64': 'n64',
+    '.md': 'genesis',
+    '.gen': 'genesis',
+    '.smd': 'genesis',
+    '.32x': '32x',
+    '.gg': 'gg',
+    '.sms': 'sms'
+};
+
+// Routes
+
+// Home page - redirect to games
+app.get('/', (req, res) => {
+    res.redirect('/games');
+});
+
+// Login page
+app.get('/login', (req, res) => {
+    res.sendFile(path.join(__dirname, 'web', 'views', 'login.html'));
+});
+
+n// Registration page
+app.get("/register", (req, res) => {
+    res.sendFile(path.join(__dirname, "web", "views", "register.html"));
+});
+// Games page
+app.get('/games', requireAuth, (req, res) => {
+    res.sendFile(path.join(__dirname, 'web', 'views', 'games.html'));
+});
+
+// Admin page
+app.get('/admin', requireAdmin, (req, res) => {
+    res.sendFile(path.join(__dirname, 'web', 'views', 'admin.html'));
+});
+
+// API Routes
+
+// Login endpoint
+app.post('/api/auth/login', async (req, res) => {
+    try {
+        const { username, password } = req.body;
+        
+        if (!username || !password) {
+            return res.status(400).json({ error: 'Username and password required' });
+        }
+
+        const user = await db.get('SELECT * FROM users WHERE username = ?', [username]);
+        
+        if (!user) {
+            return res.status(401).json({ error: 'Invalid credentials' });
+        }
+
+        const validPassword = await bcrypt.compare(password, user.password_hash);
+        
+        if (!validPassword) {
+            return res.status(401).json({ error: 'Invalid credentials' });
+        }
+
+        req.session.userId = user.id;
+        req.session.username = user.username;
+        req.session.userRole = user.role;
+
+        res.json({ 
+            success: true, 
+            user: { 
+                id: user.id, 
+                username: user.username, 
+                role: user.role 
+            } 
+        });
+    } catch (error) {
+        console.error('Login error:', error);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+});
+
+
+// Registration endpoint
+app.post('/api/auth/register', async (req, res) => {
+    try {
+        const { username, email, password } = req.body;
+        
+        // Validation
+        if (\!username || \!password) {
+            return res.status(400).json({ error: 'Username and password required' });
+        }
+        
+        // Username validation
+        const usernameRegex = /^[a-zA-Z0-9_]{3,20}$/;
+        if (\!usernameRegex.test(username)) {
+            return res.status(400).json({ error: 'Username must be 3-20 characters, letters, numbers, and underscores only' });
+        }
+        
+        // Password validation
+        if (password.length < 6) {
+            return res.status(400).json({ error: 'Password must be at least 6 characters long' });
+        }
+        
+        // Email validation (optional)
+        if (email && \!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+            return res.status(400).json({ error: 'Invalid email format' });
+        }
+        
+        // Check if username already exists
+        const existingUser = await db.get('SELECT id FROM users WHERE username = ?', [username]);
+        if (existingUser) {
+            return res.status(409).json({ error: 'Username already exists' });
+        }
+        
+        // Check if email already exists (if provided)
+        if (email) {
+            const existingEmail = await db.get('SELECT id FROM users WHERE email = ?', [email]);
+            if (existingEmail) {
+                return res.status(409).json({ error: 'Email already registered' });
+            }
+        }
+        
+        // Hash password
+        const saltRounds = 10;
+        const passwordHash = await bcrypt.hash(password, saltRounds);
+        
+        // Create user
+        const result = await db.run(, [username, email || null, passwordHash]);
+        
+        // Auto-login after registration
+        req.session.userId = result.id;
+        req.session.username = username;
+        req.session.userRole = 'user';
+        
+        res.status(201).json({ 
+            success: true, 
+            user: { 
+                id: result.id, 
+                username: username, 
+                role: 'user' 
+            } 
+        });
+        
+    } catch (error) {
+        console.error('Registration error:', error);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+});
+// Logout endpoint
+app.post('/api/auth/logout', (req, res) => {
+    req.session.destroy((err) => {
+        if (err) {
+            console.error('Logout error:', err);
+            return res.status(500).json({ error: 'Could not log out' });
+        }
+        res.json({ success: true });
+    });
+});
+
+// Get current user
+app.get('/api/auth/user', (req, res) => {
+    if (req.session.userId) {
+        res.json({
+            id: req.session.userId,
+            username: req.session.username,
+            role: req.session.userRole
+        });
+    } else {
+        res.status(401).json({ error: 'Not authenticated' });
+    }
+});
+
+// Get games by series
+app.get('/api/games', requireAuth, async (req, res) => {
+    try {
+        const series = await db.all(`
+            SELECT s.*, COUNT(g.id) as game_count 
+            FROM series s 
+            LEFT JOIN games g ON s.id = g.series_id AND g.enabled = 1
+            GROUP BY s.id 
+            ORDER BY s.sort_order, s.name
+        `);
+
+        const gamesData = [];
+        for (const serie of series) {
+            const games = await db.all(`
+                SELECT g.*, u.username as uploaded_by_name
+                FROM games g
+                LEFT JOIN users u ON g.uploaded_by = u.id
+                WHERE g.series_id = ? AND g.enabled = 1
+                ORDER BY g.title
+            `, [serie.id]);
+
+            gamesData.push({
+                ...serie,
+                games: games
+            });
+        }
+
+        res.json(gamesData);
+    } catch (error) {
+        console.error('Games API error:', error);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+});
+
+// Admin Routes
+
+// Get admin stats
+app.get('/api/admin/stats', requireAdmin, async (req, res) => {
+    try {
+        const stats = {
+            totalUsers: (await db.get('SELECT COUNT(*) as count FROM users')).count,
+            totalSeries: (await db.get('SELECT COUNT(*) as count FROM series')).count,
+            totalGames: (await db.get('SELECT COUNT(*) as count FROM games')).count,
+            enabledGames: (await db.get('SELECT COUNT(*) as count FROM games WHERE enabled = 1')).count,
+            totalSessions: (await db.get('SELECT COUNT(*) as count FROM play_sessions')).count
+        };
+        res.json(stats);
+    } catch (error) {
+        console.error('Stats API error:', error);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+});
+
+// Get all series (for admin)
+app.get('/api/admin/series', requireAdmin, async (req, res) => {
+    try {
+        const series = await db.all('SELECT * FROM series ORDER BY sort_order, name');
+        res.json(series);
+    } catch (error) {
+        console.error('Series API error:', error);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+});
+
+// Create new series
+app.post('/api/admin/series', requireAdmin, async (req, res) => {
+    try {
+        const { name, description, sort_order } = req.body;
+        
+        if (!name) {
+            return res.status(400).json({ error: 'Series name is required' });
+        }
+
+        const result = await db.run(
+            'INSERT INTO series (name, description, sort_order) VALUES (?, ?, ?)',
+            [name, description || '', sort_order || 0]
+        );
+
+        res.json({ success: true, id: result.id });
+    } catch (error) {
+        console.error('Create series error:', error);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+});
+
+// Get all games (for admin)
+app.get('/api/admin/games', requireAdmin, async (req, res) => {
+    try {
+        const games = await db.all(`
+            SELECT g.*, s.name as series_name, u.username as uploaded_by_name
+            FROM games g
+            LEFT JOIN series s ON g.series_id = s.id
+            LEFT JOIN users u ON g.uploaded_by = u.id
+            ORDER BY g.created_at DESC
+        `);
+        res.json(games);
+    } catch (error) {
+        console.error('Admin games API error:', error);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+});
+
+// Upload game
+app.post('/api/admin/games/upload', requireAdmin, upload.single('gameFile'), async (req, res) => {
+    try {
+        if (!req.file) {
+            return res.status(400).json({ error: 'No file uploaded' });
+        }
+
+        const { title, series_id, description } = req.body;
+        
+        if (!title || !series_id) {
+            // Clean up uploaded file
+            fs.unlinkSync(req.file.path);
+            return res.status(400).json({ error: 'Title and series are required' });
+        }
+
+        // Detect system from file extension
+        const ext = path.extname(req.file.originalname).toLowerCase();
+        const system = systemMapping[ext] || 'unknown';
+
+        // Move file to proper ROM directory
+        const finalFilename = `${Date.now()}_${req.file.originalname.replace(/[^a-zA-Z0-9.-]/g, '_')}`;
+        const finalPath = path.join(romsDir, finalFilename);
+        
+        fs.renameSync(req.file.path, finalPath);
+
+        // Add to database
+        const result = await db.run(`
+            INSERT INTO games (series_id, title, filename, system, enabled, uploaded_by, created_at)
+            VALUES (?, ?, ?, ?, ?, ?, datetime('now'))
+        `, [series_id, title, finalFilename, system, 1, req.session.userId]);
+
+        res.json({ 
+            success: true, 
+            id: result.id,
+            filename: finalFilename,
+            system: system
+        });
+    } catch (error) {
+        console.error('Upload error:', error);
+        // Clean up file if exists
+        if (req.file && fs.existsSync(req.file.path)) {
+            fs.unlinkSync(req.file.path);
+        }
+        res.status(500).json({ error: 'Upload failed' });
+    }
+});
+
+// Toggle game enabled status
+app.patch('/api/admin/games/:id/toggle', requireAdmin, async (req, res) => {
+    try {
+        const gameId = req.params.id;
+        
+        const game = await db.get('SELECT enabled FROM games WHERE id = ?', [gameId]);
+        if (!game) {
+            return res.status(404).json({ error: 'Game not found' });
+        }
+
+        const newStatus = game.enabled ? 0 : 1;
+        await db.run('UPDATE games SET enabled = ? WHERE id = ?', [newStatus, gameId]);
+
+        res.json({ success: true, enabled: newStatus });
+    } catch (error) {
+        console.error('Toggle game error:', error);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+});
+
+// Record play session
+app.post('/api/play-session', requireAuth, async (req, res) => {
+    try {
+        const { gameId } = req.body;
+        
+        if (!gameId) {
+            return res.status(400).json({ error: 'Game ID required' });
+        }
+
+        await db.run(
+            'INSERT INTO play_sessions (user_id, game_id, started_at) VALUES (?, ?, datetime("now"))',
+            [req.session.userId, gameId]
+        );
+
+        res.json({ success: true });
+    } catch (error) {
+        console.error('Play session error:', error);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+});
+
+// Serve ROM files
+app.get('/api/games/:id/rom', requireAuth, async (req, res) => {
+    try {
+        const game = await db.get('SELECT filename FROM games WHERE id = ? AND enabled = 1', [req.params.id]);
+        
+        if (!game) {
+            return res.status(404).json({ error: 'Game not found' });
+        }
+
+        const romPath = path.join(romsDir, game.filename);
+        
+        if (!fs.existsSync(romPath)) {
+            return res.status(404).json({ error: 'ROM file not found' });
+        }
+
+        res.sendFile(romPath);
+    } catch (error) {
+        console.error('ROM serve error:', error);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+});
+
+// Error handling middleware
+app.use((err, req, res, next) => {
+    if (err instanceof multer.MulterError) {
+        if (err.code === 'LIMIT_FILE_SIZE') {
+            return res.status(400).json({ error: 'File too large (max 500MB)' });
+        }
+    }
+    console.error('Unhandled error:', err);
+    res.status(500).json({ error: 'Internal server error' });
+});
+
+// 404 handler
+app.use((req, res) => {
+    res.status(404).json({ error: 'Not found' });
+});
+
+// Initialize database and start server
+async function startServer() {
+    try {
+        await db.connect();
+        await db.createTables();
+        
+        app.listen(PORT, () => {
+            console.log(`BlakBox Game Server running on port ${PORT}`);
+            console.log(`Access the application at: http://localhost:${PORT}`);
+        });
+    } catch (error) {
+        console.error('Failed to start server:', error);
+        process.exit(1);
+    }
+}
+
+// Graceful shutdown
+process.on('SIGTERM', async () => {
+    console.log('Received SIGTERM, shutting down gracefully');
+    await db.close();
+    process.exit(0);
+});
+
+process.on('SIGINT', async () => {
+    console.log('Received SIGINT, shutting down gracefully');
+    await db.close();
+    process.exit(0);
+});
+
+startServer();

@@ -1,0 +1,74 @@
+{
+  "container": {
+    "id": 109,
+    "hostname": "blakbox-gameserver",
+    "ip_address": "192.168.50.18",
+    "os": "Ubuntu 22.04 LTS",
+    "created": "2025-06-24T20:37:52Z",
+    "last_configured": "2025-06-24T20:51:00Z"
+  },
+  "system_packages": {
+    "base_system": {
+      "curl": "7.81.0-1ubuntu1.20",
+      "wget": "1.21.2-2ubuntu1.1",
+      "git": "1:2.34.1-1ubuntu1.12",
+      "build-essential": "12.9ubuntu3",
+      "unzip": "installed"
+    },
+    "web_server": {
+      "nginx": "1.18.0-6ubuntu14.6",
+      "config_location": "/etc/nginx/sites-available/gameserver",
+      "document_root": "/opt/blakbox-gameserver/web/public",
+      "proxy_port": 3000
+    },
+    "runtime": {
+      "nodejs": "18.20.6-1nodesource1",
+      "npm": "10.8.2",
+      "pm2": "latest (global)",
+      "python3-pip": "22.0.2+dfsg-1ubuntu0.5",
+      "sqlite3": "3.37.2-2ubuntu0.4"
+    }
+  },
+  "directory_structure": {
+    "base_path": "/opt/blakbox-gameserver/",
+    "directories": {
+      "games": "Game storage root",
+      "games/metadata": "Game metadata and info",
+      "games/roms": "Game ROM files",
+      "uploads": "Temporary upload storage",
+      "configs": "Application configuration",
+      "scripts": "Utility scripts",
+      "web": "Web application root",
+      "web/public": "Static files",
+      "web/views": "View templates",
+      "web/static": "Additional static assets"
+    },
+    "owner": "gameserver:gameserver"
+  },
+  "system_user": {
+    "username": "gameserver",
+    "uid": 999,
+    "gid": 999,
+    "home": "/opt/blakbox-gameserver",
+    "shell": "/bin/bash"
+  },
+  "services": {
+    "nginx": {
+      "status": "enabled",
+      "port": 80,
+      "config": "/etc/nginx/sites-enabled/gameserver"
+    },
+    "pm2": {
+      "status": "enabled",
+      "user": "gameserver",
+      "service": "pm2-gameserver",
+      "home": "/opt/blakbox-gameserver/.pm2"
+    }
+  },
+  "network": {
+    "primary_ip": "192.168.50.18",
+    "nginx_port": 80,
+    "app_port": 3000,
+    "max_upload_size": "100M"
+  }
+}

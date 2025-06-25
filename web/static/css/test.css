@@ -1,0 +1,16 @@
+body {
+    background: red !important;
+    color: white !important;
+    font-size: 24px !important;
+}
+
+h1 {
+    color: yellow !important;
+}
+
+.btn {
+    background: blue !important;
+    color: white !important;
+    padding: 20px !important;
+    border: 3px solid green !important;
+}

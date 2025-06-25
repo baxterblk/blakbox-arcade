@@ -1,0 +1,38 @@
+# Node modules
+node_modules/
+
+# Environment files
+.env
+
+# Database files
+data/gameserver.db
+*.db
+
+# Logs
+logs/*.log
+*.log
+server.log
+
+# PM2
+.pm2/
+
+# Uploaded games (copyright)
+games/roms/*
+uploads/*
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Backup files
+*.bak
+*-backup*
+
+# Session data
+sessions/
+
+# Save states (user data)
+saves/
+
+# Temporary files
+/tmp/

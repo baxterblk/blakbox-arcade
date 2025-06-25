@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Blakbox Arcade - Games</title>
+    <link rel="stylesheet" href="/css/retro-working.css">
+</head>
+<body>
+    <div class="container">
+        <header class="header">
+            <h1 class="neon-text">Blakbox Arcade</h1>
+            <div class="user-info">
+                <span id="username-display"></span>
+                <button id="logout-btn" class="btn btn-secondary">LOGOUT</button>
+            </div>
+        </header>
+
+        <main class="main-content">
+            <div class="games-container">
+                <div id="loading" class="loading">Loading games...</div>
+                <div id="no-games" class="no-games" style="display: none;">
+                    <div class="welcome-section">
+                        <h2>Welcome to Blakbox Arcade!</h2>
+                        <p>Your retro gaming hub for classic console games. Experience the golden age of gaming with authentic emulation and modern convenience.</p>
+                        
+                        <div class="feature-grid">
+                            <div class="feature-item">
+                                <h4>🎮 Multi-Console</h4>
+                                <p>NES, SNES, Game Boy, N64, Genesis and more</p>
+                            </div>
+                            <div class="feature-item">
+                                <h4>🌐 Browser Gaming</h4>
+                                <p>No downloads required - play instantly</p>
+                            </div>
+                            <div class="feature-item">
+                                <h4>📱 Mobile Ready</h4>
+                                <p>Touch controls and responsive design</p>
+                            </div>
+                            <div class="feature-item">
+                                <h4>💾 Save States</h4>
+                                <p>Save and resume your progress</p>
+                            </div>
+                        </div>
+                        
+                        <p style="margin-top: 20px; color: #b8b8ff;">No games have been uploaded yet. Contact an administrator to add games to the library.</p>
+                    </div>
+                </div>
+                <div id="games-list" class="games-list" style="display: none;"></div>
+            </div>
+        </main>
+
+        <!-- Game emulator modal -->
+        <div id="game-modal" class="modal" style="display: none;">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h2 id="game-title">Game Title</h2>
+                    <div class="game-controls">
+                        <div class="save-load-controls">
+                            <button id="quick-save" class="btn btn-success btn-small">Quick Save (F5)</button>
+                            <button id="quick-load" class="btn btn-secondary btn-small">Quick Load (F8)</button>
+                            <button id="save-menu" class="btn btn-primary btn-small">Save Menu</button>
+                        </div>
+                        <button id="close-game" class="btn-close">×</button>
+                    </div>
+                </div>
+                
+                <!-- Save/Load Menu -->
+                <div id="save-load-menu" class="save-load-panel" style="display: none;">
+                    <h3>Save & Load States</h3>
+                    <div class="save-slots-grid">
+                        <div class="save-slot" data-slot="1">
+                            <div class="slot-info">
+                                <strong>Slot 1</strong>
+                                <span class="slot-time" id="slot-1-time">Empty</span>
+                            </div>
+                            <div class="slot-actions">
+                                <button onclick="saveToSlot(1)" class="btn btn-success btn-small">Save</button>
+                                <button onclick="loadFromSlot(1)" class="btn btn-secondary btn-small">Load</button>
+                                <button onclick="deleteSlot(1)" class="btn btn-danger btn-small">Delete</button>
+                            </div>
+                        </div>
+                        <div class="save-slot" data-slot="2">
+                            <div class="slot-info">
+                                <strong>Slot 2</strong>
+                                <span class="slot-time" id="slot-2-time">Empty</span>
+                            </div>
+                            <div class="slot-actions">
+                                <button onclick="saveToSlot(2)" class="btn btn-success btn-small">Save</button>
+                                <button onclick="loadFromSlot(2)" class="btn btn-secondary btn-small">Load</button>
+                                <button onclick="deleteSlot(2)" class="btn btn-danger btn-small">Delete</button>
+                            </div>
+                        </div>
+                        <div class="save-slot" data-slot="3">
+                            <div class="slot-info">
+                                <strong>Slot 3</strong>
+                                <span class="slot-time" id="slot-3-time">Empty</span>
+                            </div>
+                            <div class="slot-actions">
+                                <button onclick="saveToSlot(3)" class="btn btn-success btn-small">Save</button>
+                                <button onclick="loadFromSlot(3)" class="btn btn-secondary btn-small">Load</button>
+                                <button onclick="deleteSlot(3)" class="btn btn-danger btn-small">Delete</button>
+                            </div>
+                        </div>
+                    </div>
+                    <button onclick="closeSaveMenu()" class="btn btn-secondary">Close</button>
+                </div>
+                
+                <div class="emulator-container">
+                    <div id="emulator" class="emulator-wrapper">
+                        <!-- EmulatorJS will be loaded here -->
+                        <p>Loading emulator...</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="/js/main.js"></script>
+</body>
+</html>
