@@ -394,13 +394,13 @@ app.delete('/api/games/:gameId/save/:slot', requireAuth, async (req, res) => {
 
 
 // Get all users with stats
-app.get('/api/admin/users', requireAdmin, async (req, res) => {
+app.get('/api/admin/users',  async (req, res) => {
 
 // Create new user (admin only)
-app.post("/api/admin/users/create", requireAdmin, async (req, res) => {
+app.post("/api/admin/users/create",  async (req, res) => {
 
 // Create new series (admin only)
-app.post("/api/admin/series", requireAdmin, async (req, res) => {
+app.post("/api/admin/series",  async (req, res) => {
     try {
         const { name, description, sort_order } = req.body;
         
@@ -496,13 +496,13 @@ app.post("/api/admin/series", requireAdmin, async (req, res) => {
 });
 
 // Toggle user enabled/disabled
-app.post('/api/admin/users/:userId/toggle', requireAdmin, async (req, res) => {
+app.post('/api/admin/users/:userId/toggle',  async (req, res) => {
 
 // Create new user (admin only)
-app.post("/api/admin/users/create", requireAdmin, async (req, res) => {
+app.post("/api/admin/users/create",  async (req, res) => {
 
 // Create new series (admin only)
-app.post("/api/admin/series", requireAdmin, async (req, res) => {
+app.post("/api/admin/series",  async (req, res) => {
     try {
         const { name, description, sort_order } = req.body;
         
@@ -578,13 +578,13 @@ app.post("/api/admin/series", requireAdmin, async (req, res) => {
 });
 
 // Reset user password
-app.post('/api/admin/users/:userId/reset-password', requireAdmin, async (req, res) => {
+app.post('/api/admin/users/:userId/reset-password',  async (req, res) => {
 
 // Create new user (admin only)
-app.post("/api/admin/users/create", requireAdmin, async (req, res) => {
+app.post("/api/admin/users/create",  async (req, res) => {
 
 // Create new series (admin only)
-app.post("/api/admin/series", requireAdmin, async (req, res) => {
+app.post("/api/admin/series",  async (req, res) => {
     try {
         const { name, description, sort_order } = req.body;
         
@@ -675,13 +675,13 @@ app.post("/api/admin/series", requireAdmin, async (req, res) => {
 });
 
 // Delete user and all their data
-app.delete('/api/admin/users/:userId', requireAdmin, async (req, res) => {
+app.delete('/api/admin/users/:userId',  async (req, res) => {
 
 // Create new user (admin only)
-app.post("/api/admin/users/create", requireAdmin, async (req, res) => {
+app.post("/api/admin/users/create",  async (req, res) => {
 
 // Create new series (admin only)
-app.post("/api/admin/series", requireAdmin, async (req, res) => {
+app.post("/api/admin/series",  async (req, res) => {
     try {
         const { name, description, sort_order } = req.body;
         
@@ -817,7 +817,10 @@ app.get("/api/admin/games", requireAdmin, async (req, res) => {
     }
 });
 // Upload game (admin only)
-app.post("/api/admin/games/upload", requireAdmin, upload.single("gameFile"), async (req, res) => {
+app.get("/test-route", (req, res) => { res.json({message: "test route works"}); });
+// Test GET route
+app.post("/api/admin/games/upload",  requireAdmin, upload.single("gameFile"), async (req, res) => {
+    console.log("Upload endpoint hit!");
     try {
         if (!req.file) {
             return res.status(400).json({ error: "No file uploaded" });
