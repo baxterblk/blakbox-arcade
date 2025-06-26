@@ -49,6 +49,7 @@ const upload = multer({
 app.use(cors());
 
 // UPLOAD ROUTE - EARLY PLACEMENT
+app.get("/api/admin/games/test-simple", (req, res) => { res.json({message: "Simple test works"}); });
 app.post("/api/admin/games/upload", (req, res) => {
     console.log("UPLOAD ROUTE HIT!");
     res.json({ success: true, message: "Upload endpoint working" });

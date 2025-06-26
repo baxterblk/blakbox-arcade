@@ -257,7 +257,7 @@ class AdminPanel {
                 this.showAlert('Upload failed', 'error');
             });
 
-            xhr.open('POST', '/api/admin/games/upload');
+            xhr.open('POST', '/api/games/upload');
             xhr.send(formData);
 
         } catch (error) {
@@ -268,7 +268,7 @@ class AdminPanel {
 
     async loadGames() {
         try {
-            const response = await fetch('/api/admin/games');
+            const response = await fetch('/api/games');
             if (response.ok) {
                 this.games = await response.json();
                 this.renderGames();
@@ -328,7 +328,7 @@ class AdminPanel {
 
     async toggleGame(gameId) {
         try {
-            const response = await fetch(`/api/admin/games/${gameId}/toggle`, {
+            const response = await fetch(`/api/games/${gameId}/toggle`, {
                 method: 'PATCH'
             });
 
