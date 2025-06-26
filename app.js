@@ -252,7 +252,7 @@ app.get('/api/games', requireAuth, async (req, res) => {
 });
 
 // Get all series (for admin)
-app.get('/api/series', requireAdmin, async (req, res) => {
+app.get("/api/series", requireAuth, async (req, res) => {
     try {
         const series = await db.all('SELECT * FROM series ORDER BY sort_order, name');
         res.json(series);
