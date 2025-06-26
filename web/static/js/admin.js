@@ -15,7 +15,7 @@ class AdminPanel {
         await this.loadGames();
         await this.loadUsers();
         this.setupSeriesForm();
-        loadSeriesDropdown();
+        loadSeries();
         setupFileAutoPopulate();
     }
 
@@ -455,7 +455,7 @@ class AdminPanel {
                 this.showAlert(result.message, 'success');
                 await this.loadUsers();
         this.setupSeriesForm();
-        loadSeriesDropdown();
+        loadSeries();
         setupFileAutoPopulate();
             } else {
                 const error = await response.json();
@@ -523,7 +523,7 @@ class AdminPanel {
                 this.showAlert(result.message, 'success');
                 await this.loadUsers();
         this.setupSeriesForm();
-        loadSeriesDropdown();
+        loadSeries();
         setupFileAutoPopulate();
                 await this.loadStats(); // Update overall stats
             } else {
@@ -610,7 +610,7 @@ async function createSeries() {
             document.getElementById("series-name").value = "";
             document.getElementById("series-description").value = "";
             document.getElementById("series-order").value = "0";
-            loadSeriesDropdown();
+            loadSeries();
         } else {
             const error = await response.json();
             alert("Error: " + error.error);
@@ -621,29 +621,48 @@ async function createSeries() {
 }
 
 // Load series into dropdown
-async function loadSeriesDropdown() {
+
+async function loadSeries() {
     try {
         const response = await fetch("/api/series", { credentials: "include" });
         const series = await response.json();
         
-        const select = document.getElementById("game-series");
-        if (select) {
-            select.innerHTML = "<option value=\"\">Select Series...</option>";
-            series.forEach(function(s) {
+        // Update series dropdown in upload tab
+        const seriesSelect = document.getElementById("game-series");
+        if (seriesSelect) {
+            seriesSelect.innerHTML = "<option value=\"\">Select Series...</option>";
+            series.forEach(s => {
                 const option = document.createElement("option");
                 option.value = s.id;
                 option.textContent = s.name;
-                select.appendChild(option);
+                seriesSelect.appendChild(option);
             });
+        }
+        
+        // Update series list in series tab
+        const seriesList = document.getElementById("series-list");
+        if (seriesList) {
+            if (series.length === 0) {
+                seriesList.innerHTML = "<p>No series created yet.</p>";
+            } else {
+                seriesList.innerHTML = series.map(s => 
+                    `<div class="series-item">
+                        <strong>${s.name}</strong>
+                        ${s.description ? ": " + s.description : ""}
+                        <span class="series-order">(Order: ${s.sort_order || 0})</span>
+                    </div>`
+                ).join("");
+            }
         }
     } catch (error) {
         console.error("Error loading series:", error);
+        const seriesList = document.getElementById("series-list");
+        if (seriesList) {
+            seriesList.innerHTML = "<p>Error loading series. Please check console.</p>";
+        }
     }
 }
-
 // Auto-populate from filename
-function setupFileAutoPopulate() {
-    const fileInput = document.getElementById("game-file");
 function setupFileAutoPopulate() {
     const fileInput = document.getElementById("game-file");
     if (fileInput) {
@@ -659,7 +678,7 @@ function setupFileAutoPopulate() {
                 
                 // Clean up the title
                 const titleInput = document.getElementById("game-title");
-                if (\!titleInput.value) {
+                if (!titleInput.value) {
                     titleInput.value = baseName.split(" ")
                         .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
                         .join(" ");
@@ -717,7 +736,7 @@ function setupFileAutoPopulate() {
                 
                 // Auto-suggest description
                 const descInput = document.getElementById("game-description");
-                if (descInput && \!descInput.value) {
+                if (descInput && !descInput.value) {
                     let system = "Game";
                     if (file.name.toLowerCase().includes("n64") || file.name.toLowerCase().endsWith(".z64")) {
                         system = "Nintendo 64";

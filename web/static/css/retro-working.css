@@ -1045,3 +1045,22 @@ body {
     box-shadow: 0 0 20px #ff006e;
     transform: translateY(-2px);
 }
+
+/* Series list styling */
+.series-item {
+    padding: 15px;
+    margin: 10px 0;
+    background: rgba(0, 255, 255, 0.1);
+    border: 1px solid #00ffff;
+    border-radius: 5px;
+}
+
+.series-item strong {
+    color: #ff006e;
+}
+
+.series-order {
+    float: right;
+    color: #8b5cf6;
+    font-size: 0.9em;
+}

@@ -23,11 +23,11 @@
 
         <main class="admin-container">
             <div class="admin-tabs">
-                <button class="admin-tab active" data-tab="overview">Overview</button>
-                <button class="admin-tab" data-tab="series">Game Series</button>
-                <button class="admin-tab" data-tab="upload">Upload Games</button>
-                <button class="admin-tab" data-tab="games">Manage Games</button>
-                <button class="admin-tab" data-tab="users">🎯 MANAGE USERS 🎯</button>
+                <button class="admin-tab active" data-tab="overview" onclick="adminPanel.switchTab('overview')">Overview</button>
+                <button class="admin-tab" data-tab="series" onclick="adminPanel.switchTab('series')">Game Series</button>
+                <button class="admin-tab" data-tab="upload" onclick="adminPanel.switchTab('upload')">Upload Games</button>
+                <button class="admin-tab" data-tab="games" onclick="adminPanel.switchTab('games')">Manage Games</button>
+                <button class="admin-tab" data-tab="users" onclick="adminPanel.switchTab('users')">🎯 MANAGE USERS 🎯</button>
             </div>
 
             <!-- Overview Tab -->
