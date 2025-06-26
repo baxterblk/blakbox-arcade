@@ -644,21 +644,85 @@ async function loadSeriesDropdown() {
 // Auto-populate from filename
 function setupFileAutoPopulate() {
     const fileInput = document.getElementById("game-file");
+function setupFileAutoPopulate() {
+    const fileInput = document.getElementById("game-file");
     if (fileInput) {
         fileInput.addEventListener("change", function(e) {
             const file = e.target.files[0];
             if (file) {
-                const baseName = file.name.replace(/\.[^/.]+$/, "")
+                let baseName = file.name.replace(/\.[^/.]+$/, "")
                     .replace(/\([^)]*\)/g, "")
                     .replace(/\[[^\]]*\]/g, "")
                     .replace(/_/g, " ")
+                    .replace(/\s+/g, " ")
                     .trim();
                 
+                // Clean up the title
                 const titleInput = document.getElementById("game-title");
-                if (!titleInput.value) {
+                if (\!titleInput.value) {
                     titleInput.value = baseName.split(" ")
                         .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
                         .join(" ");
+                }
+                
+                // Auto-detect series based on filename
+                const seriesSelect = document.getElementById("game-series");
+                if (seriesSelect) {
+                    const lowerName = baseName.toLowerCase();
+                    
+                    // Auto-detect based on file extension and game name
+                    if (file.name.toLowerCase().includes("n64") || file.name.toLowerCase().endsWith(".z64")) {
+                        // Nintendo 64 games
+                        Array.from(seriesSelect.options).forEach(option => {
+                            if (option.text.toLowerCase().includes("nintendo")) {
+                                seriesSelect.value = option.value;
+                            }
+                        });
+                    }
+                    
+                    // GoldenEye specific detection
+                    if (lowerName.includes("goldeneye") || lowerName.includes("007")) {
+                        Array.from(seriesSelect.options).forEach(option => {
+                            if (option.text.toLowerCase().includes("shoot")) {
+                                seriesSelect.value = option.value;
+                            }
+                        });
+                    }
+                    
+                    // Other series detection
+                    if (lowerName.includes("mario") || lowerName.includes("zelda") || lowerName.includes("metroid")) {
+                        Array.from(seriesSelect.options).forEach(option => {
+                            if (option.text.toLowerCase().includes("nintendo")) {
+                                seriesSelect.value = option.value;
+                            }
+                        });
+                    }
+                    
+                    if (lowerName.includes("sonic") || lowerName.includes("streets of rage")) {
+                        Array.from(seriesSelect.options).forEach(option => {
+                            if (option.text.toLowerCase().includes("sega")) {
+                                seriesSelect.value = option.value;
+                            }
+                        });
+                    }
+                    
+                    if (lowerName.includes("street fighter") || lowerName.includes("mortal kombat") || lowerName.includes("tekken")) {
+                        Array.from(seriesSelect.options).forEach(option => {
+                            if (option.text.toLowerCase().includes("fighting")) {
+                                seriesSelect.value = option.value;
+                            }
+                        });
+                    }
+                }
+                
+                // Auto-suggest description
+                const descInput = document.getElementById("game-description");
+                if (descInput && \!descInput.value) {
+                    let system = "Game";
+                    if (file.name.toLowerCase().includes("n64") || file.name.toLowerCase().endsWith(".z64")) {
+                        system = "Nintendo 64";
+                    }
+                    descInput.value = "Classic " + system + " game: " + titleInput.value;
                 }
             }
         });
