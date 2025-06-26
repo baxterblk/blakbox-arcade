@@ -108,7 +108,7 @@ class AdminPanel {
 
         // Load data if needed
         if (tabName === 'upload') {
-            setTimeout(() => this.populateSeriesSelect(), 200);
+            setTimeout(() => this.loadSeries(), 200);
         } else if (tabName === 'users') {
             setTimeout(() => this.loadUsers(), 200);
         }
@@ -136,6 +136,7 @@ class AdminPanel {
             if (response.ok) {
                 this.series = await response.json();
                 this.renderSeries();
+                this.populateSeriesSelect();
             }
         } catch (error) {
             console.error('Failed to load series:', error);
