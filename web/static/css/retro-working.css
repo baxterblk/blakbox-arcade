@@ -1010,3 +1010,38 @@ body {
 .close:hover {
     color: #ff006e;
 }
+
+/* Section header with button */
+.section-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+}
+
+.section-header h3 {
+    margin: 0;
+    color: #00ffff;
+    text-shadow: 0 0 10px #00ffff;
+}
+
+#create-user-btn {
+    background: #ff006e;
+    color: white;
+    border: 2px solid #ff006e;
+    padding: 10px 20px;
+    font-family: "Orbitron", monospace;
+    font-weight: bold;
+    cursor: pointer;
+    transition: all 0.3s;
+    text-transform: uppercase;
+    box-shadow: 0 0 10px rgba(255, 0, 110, 0.5);
+    border-radius: 5px;
+}
+
+#create-user-btn:hover {
+    background: transparent;
+    color: #ff006e;
+    box-shadow: 0 0 20px #ff006e;
+    transform: translateY(-2px);
+}

@@ -75,7 +75,7 @@
                             <label for="series-description">Description:</label>
                             <textarea id="series-description" name="description" rows="3"></textarea>
                         </div>
-                        <button type="submit" class="btn btn-primary">Create Series</button>
+                        <button type="submit" class="btn btn-primary create-btn">Create Series</button>
                     </form>
                 </div>
 
@@ -111,7 +111,7 @@
                             <label for="game-description">Description (optional):</label>
                             <textarea id="game-description" name="description" rows="3"></textarea>
                         </div>
-                        <button type="submit" class="btn btn-primary">Upload Game</button>
+                        <button type="submit" class="btn btn-primary create-btn">Upload Game</button>
                         <div class="upload-progress">
                             <div class="upload-progress-bar"></div>
                         </div>
@@ -149,8 +149,9 @@
                 </div>
 
                 <div class="form-section">
-                    <h3>User Management</h3>
-        <button id="create-user-btn" class="btn btn-primary" onclick="showCreateUserModal()" style="float: right; margin-top: -40px;">+ CREATE USER</button>
+                    <div class="section-header"><h3>User Management</h3>
+        <button id="create-user-btn" class="btn btn-primary create-btn" onclick="showCreateUserModal()" >+ CREATE USER</button>
+                    </div>
                     <div class="user-list-container">
                         <table class="games-table" id="users-table">
                             <thead>
@@ -203,7 +204,7 @@
                     <option value="admin">Admin</option>
                 </select>
             </div>
-            <button type="submit" class="btn btn-primary">CREATE USER</button>
+            <button type="submit" class="btn btn-primary create-btn">CREATE USER</button>
         </form>
     </div>
 </div>
