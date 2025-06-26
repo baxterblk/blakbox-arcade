@@ -523,3 +523,46 @@ let adminPanel;
 document.addEventListener('DOMContentLoaded', () => {
     adminPanel = new AdminPanel();
 });
+// Create User Modal Functions
+function showCreateUserModal() {
+    document.getElementById("create-user-modal").style.display = "block";
+}
+
+function closeCreateUserModal() {
+    document.getElementById("create-user-modal").style.display = "none";
+    document.getElementById("create-user-form").reset();
+}
+
+// Handle create user form submission
+document.addEventListener("DOMContentLoaded", function() {
+    document.getElementById("create-user-form").addEventListener("submit", async (e) => {
+        e.preventDefault();
+        
+        const userData = {
+            username: document.getElementById("new-username").value,
+            email: document.getElementById("new-email").value,
+            password: document.getElementById("new-password").value,
+            role: document.getElementById("new-role").value
+        };
+        
+        try {
+            const response = await fetch("/api/admin/users/create", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                credentials: "include",
+                body: JSON.stringify(userData)
+            });
+            
+            if (response.ok) {
+                alert("User created successfully\!");
+                closeCreateUserModal();
+                loadUsers(); // Reload user list
+            } else {
+                const error = await response.json();
+                alert("Error: " + error.error);
+            }
+        } catch (error) {
+            alert("Error creating user: " + error.message);
+        }
+    });
+});

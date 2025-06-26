@@ -1,3 +1,5 @@
+![Blakbox Arcade Banner](web/static/branding/banner.png)
+
 # Blakbox Arcade
 
 A self-hosted retro gaming platform with a stunning cyberpunk aesthetic, built for nostalgic gamers who want to experience classic console games in their browser.

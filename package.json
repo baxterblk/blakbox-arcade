@@ -8,7 +8,12 @@
     "dev": "nodemon app.js",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
-  "keywords": ["games", "emulator", "retro", "server"],
+  "keywords": [
+    "games",
+    "emulator",
+    "retro",
+    "server"
+  ],
   "author": "BlakBox Game Server",
   "license": "ISC",
   "dependencies": {
@@ -18,6 +23,7 @@
     "express": "^5.1.0",
     "express-session": "^1.18.1",
     "multer": "^2.0.1",
+    "nodemailer": "^7.0.3",
     "sqlite3": "^5.1.7"
   },
   "devDependencies": {

@@ -952,3 +952,61 @@ body {
     margin: 0;
     text-transform: uppercase;
 }
+
+/* Create User Modal */
+.modal {
+    position: fixed;
+    z-index: 1000;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.8);
+}
+
+.modal-content {
+    background-color: #1a1a2e;
+    margin: 10% auto;
+    padding: 30px;
+    border: 2px solid #00ffff;
+    border-radius: 10px;
+    width: 400px;
+    box-shadow: 0 0 30px #00ffff;
+}
+
+.modal-content h2 {
+    color: #ff006e;
+    text-shadow: 0 0 10px #ff006e;
+    margin-bottom: 20px;
+}
+
+.form-group {
+    margin-bottom: 20px;
+}
+
+.form-group label {
+    display: block;
+    color: #00ffff;
+    margin-bottom: 5px;
+}
+
+.form-group input,
+.form-group select {
+    width: 100%;
+    padding: 10px;
+    background: #0a0a0a;
+    border: 1px solid #00ffff;
+    color: #00ffff;
+    border-radius: 5px;
+}
+
+.close {
+    color: #00ffff;
+    float: right;
+    font-size: 28px;
+    cursor: pointer;
+}
+
+.close:hover {
+    color: #ff006e;
+}

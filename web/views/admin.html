@@ -150,6 +150,7 @@
 
                 <div class="form-section">
                     <h3>User Management</h3>
+        <button id="create-user-btn" class="btn btn-primary" onclick="showCreateUserModal()" style="float: right; margin-top: -40px;">+ CREATE USER</button>
                     <div class="user-list-container">
                         <table class="games-table" id="users-table">
                             <thead>
@@ -177,5 +178,34 @@
     </div>
 
     <script src="/js/admin.js"></script>
+<!-- Create User Modal -->
+<div id="create-user-modal" class="modal" style="display: none;">
+    <div class="modal-content">
+        <span class="close" onclick="closeCreateUserModal()">&times;</span>
+        <h2>Create New User</h2>
+        <form id="create-user-form">
+            <div class="form-group">
+                <label>Username:</label>
+                <input type="text" id="new-username" required pattern="[a-zA-Z0-9_]{3,20}">
+            </div>
+            <div class="form-group">
+                <label>Email (optional):</label>
+                <input type="email" id="new-email">
+            </div>
+            <div class="form-group">
+                <label>Password:</label>
+                <input type="password" id="new-password" required minlength="6">
+            </div>
+            <div class="form-group">
+                <label>Role:</label>
+                <select id="new-role">
+                    <option value="user">User</option>
+                    <option value="admin">Admin</option>
+                </select>
+            </div>
+            <button type="submit" class="btn btn-primary">CREATE USER</button>
+        </form>
+    </div>
+</div>
 </body>
 </html>

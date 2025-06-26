@@ -1,6 +1,7 @@
 const express = require('express');
 const session = require('express-session');
 const bcrypt = require('bcrypt');
+const { sendPasswordResetEmail } = require("./email");
 const path = require('path');
 const fs = require('fs');
 const cors = require('cors');
@@ -364,6 +365,36 @@ app.delete('/api/games/:gameId/save/:slot', requireAuth, async (req, res) => {
 
 // Get all users with stats
 app.get('/api/admin/users', requireAdmin, async (req, res) => {
+
+// Create new user (admin only)
+app.post("/api/admin/users/create", requireAdmin, async (req, res) => {
+    try {
+        const { username, email, password, role } = req.body;
+        
+        // Validate input
+        if (!username || !password || username.length < 3 || password.length < 6) {
+            return res.status(400).json({ error: "Invalid input" });
+        }
+        
+        // Check if username exists
+        const existing = await db.get("SELECT id FROM users WHERE username = ?", [username]);
+        if (existing) {
+            return res.status(400).json({ error: "Username already exists" });
+        }
+        
+        // Hash password and create user
+        const passwordHash = await bcrypt.hash(password, 10);
+        await db.run(
+            "INSERT INTO users (username, email, password_hash, role, enabled) VALUES (?, ?, ?, ?, ?)",
+            [username, email || null, passwordHash, role || "user", 1]
+        );
+        
+        res.json({ success: true });
+    } catch (error) {
+        console.error("Create user error:", error);
+        res.status(500).json({ error: "Failed to create user" });
+    }
+});
     try {
         const users = await db.all(`
             SELECT 
@@ -409,6 +440,36 @@ app.get('/api/admin/users', requireAdmin, async (req, res) => {
 
 // Toggle user enabled/disabled
 app.post('/api/admin/users/:userId/toggle', requireAdmin, async (req, res) => {
+
+// Create new user (admin only)
+app.post("/api/admin/users/create", requireAdmin, async (req, res) => {
+    try {
+        const { username, email, password, role } = req.body;
+        
+        // Validate input
+        if (!username || !password || username.length < 3 || password.length < 6) {
+            return res.status(400).json({ error: "Invalid input" });
+        }
+        
+        // Check if username exists
+        const existing = await db.get("SELECT id FROM users WHERE username = ?", [username]);
+        if (existing) {
+            return res.status(400).json({ error: "Username already exists" });
+        }
+        
+        // Hash password and create user
+        const passwordHash = await bcrypt.hash(password, 10);
+        await db.run(
+            "INSERT INTO users (username, email, password_hash, role, enabled) VALUES (?, ?, ?, ?, ?)",
+            [username, email || null, passwordHash, role || "user", 1]
+        );
+        
+        res.json({ success: true });
+    } catch (error) {
+        console.error("Create user error:", error);
+        res.status(500).json({ error: "Failed to create user" });
+    }
+});
     try {
         const { userId } = req.params;
         
@@ -434,6 +495,36 @@ app.post('/api/admin/users/:userId/toggle', requireAdmin, async (req, res) => {
 
 // Reset user password
 app.post('/api/admin/users/:userId/reset-password', requireAdmin, async (req, res) => {
+
+// Create new user (admin only)
+app.post("/api/admin/users/create", requireAdmin, async (req, res) => {
+    try {
+        const { username, email, password, role } = req.body;
+        
+        // Validate input
+        if (!username || !password || username.length < 3 || password.length < 6) {
+            return res.status(400).json({ error: "Invalid input" });
+        }
+        
+        // Check if username exists
+        const existing = await db.get("SELECT id FROM users WHERE username = ?", [username]);
+        if (existing) {
+            return res.status(400).json({ error: "Username already exists" });
+        }
+        
+        // Hash password and create user
+        const passwordHash = await bcrypt.hash(password, 10);
+        await db.run(
+            "INSERT INTO users (username, email, password_hash, role, enabled) VALUES (?, ?, ?, ?, ?)",
+            [username, email || null, passwordHash, role || "user", 1]
+        );
+        
+        res.json({ success: true });
+    } catch (error) {
+        console.error("Create user error:", error);
+        res.status(500).json({ error: "Failed to create user" });
+    }
+});
     try {
         const { userId } = req.params;
         
@@ -449,6 +540,17 @@ app.post('/api/admin/users/:userId/reset-password', requireAdmin, async (req, re
         
         await db.run('UPDATE users SET password_hash = ? WHERE id = ?', [passwordHash, userId]);
         
+        // Send email if user has email address
+        if (user.email) {
+            try {
+                await sendPasswordResetEmail(user.email, user.username, tempPassword);
+                console.log("Password reset email sent to:", user.email);
+            } catch (emailError) {
+                console.error("Failed to send email:", emailError);
+                // Continue even if email fails
+            }
+        }
+        
         res.json({ 
             success: true, 
             message: 'Password reset successfully',
@@ -463,6 +565,36 @@ app.post('/api/admin/users/:userId/reset-password', requireAdmin, async (req, re
 
 // Delete user and all their data
 app.delete('/api/admin/users/:userId', requireAdmin, async (req, res) => {
+
+// Create new user (admin only)
+app.post("/api/admin/users/create", requireAdmin, async (req, res) => {
+    try {
+        const { username, email, password, role } = req.body;
+        
+        // Validate input
+        if (!username || !password || username.length < 3 || password.length < 6) {
+            return res.status(400).json({ error: "Invalid input" });
+        }
+        
+        // Check if username exists
+        const existing = await db.get("SELECT id FROM users WHERE username = ?", [username]);
+        if (existing) {
+            return res.status(400).json({ error: "Username already exists" });
+        }
+        
+        // Hash password and create user
+        const passwordHash = await bcrypt.hash(password, 10);
+        await db.run(
+            "INSERT INTO users (username, email, password_hash, role, enabled) VALUES (?, ?, ?, ?, ?)",
+            [username, email || null, passwordHash, role || "user", 1]
+        );
+        
+        res.json({ success: true });
+    } catch (error) {
+        console.error("Create user error:", error);
+        res.status(500).json({ error: "Failed to create user" });
+    }
+});
     try {
         const { userId } = req.params;
         
