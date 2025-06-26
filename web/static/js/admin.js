@@ -566,3 +566,96 @@ document.addEventListener("DOMContentLoaded", function() {
         }
     });
 });
+
+// Series Management
+async function createSeries() {
+    const name = document.getElementById("series-name").value;
+    const description = document.getElementById("series-description").value;
+    const sort_order = document.getElementById("series-order").value;
+    
+    if (\!name) {
+        alert("Series name is required\!");
+        return;
+    }
+    
+    try {
+        const response = await fetch("/api/admin/series", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            credentials: "include",
+            body: JSON.stringify({ name, description, sort_order: parseInt(sort_order) || 0 })
+        });
+        
+        if (response.ok) {
+            alert("Series created successfully\!");
+            document.getElementById("series-name").value = "";
+            document.getElementById("series-description").value = "";
+            document.getElementById("series-order").value = "0";
+            loadSeriesDropdown();
+        } else {
+            const error = await response.json();
+            alert("Error: " + error.error);
+        }
+    } catch (error) {
+        alert("Error creating series: " + error.message);
+    }
+}
+
+// Load series into dropdown
+async function loadSeriesDropdown() {
+    try {
+        const response = await fetch("/api/series", { credentials: "include" });
+        const series = await response.json();
+        
+        const select = document.getElementById("game-series");
+        if (select) {
+            select.innerHTML = "<option value=\"\">Select Series...</option>";
+            series.forEach(s => {
+                const option = document.createElement("option");
+                option.value = s.id;
+                option.textContent = s.name;
+                select.appendChild(option);
+            });
+        }
+    } catch (error) {
+        console.error("Error loading series:", error);
+    }
+}
+
+// Auto-populate from filename
+function setupFileAutoPopulate() {
+    const fileInput = document.getElementById("game-file");
+    if (fileInput) {
+        fileInput.addEventListener("change", function(e) {
+            const file = e.target.files[0];
+            if (file) {
+                const baseName = file.name.replace(/\.[^/.]+$/, "")
+                    .replace(/\([^)]*\)/g, "")
+                    .replace(/\[[^\]]*\]/g, "")
+                    .replace(/_/g, " ")
+                    .trim();
+                
+                const titleInput = document.getElementById("game-title");
+                if (\!titleInput.value) {
+                    titleInput.value = baseName.split(" ")
+                        .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+                        .join(" ");
+                }
+            }
+        });
+    }
+}
+
+// Enhanced DOMContentLoaded
+document.addEventListener("DOMContentLoaded", function() {
+    const seriesForm = document.getElementById("series-form");
+    if (seriesForm) {
+        seriesForm.addEventListener("submit", function(e) {
+            e.preventDefault();
+            createSeries();
+        });
+    }
+    
+    loadSeriesDropdown();
+    setupFileAutoPopulate();
+});

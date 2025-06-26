@@ -2,6 +2,7 @@ const express = require('express');
 const session = require('express-session');
 const bcrypt = require('bcrypt');
 const { sendPasswordResetEmail } = require("./email");
+const { detectGameMetadata } = require("./gameMetadata");
 const path = require('path');
 const fs = require('fs');
 const cors = require('cors');
@@ -368,6 +369,33 @@ app.get('/api/admin/users', requireAdmin, async (req, res) => {
 
 // Create new user (admin only)
 app.post("/api/admin/users/create", requireAdmin, async (req, res) => {
+
+// Create new series (admin only)
+app.post("/api/admin/series", requireAdmin, async (req, res) => {
+    try {
+        const { name, description, sort_order } = req.body;
+        
+        if (!name || name.trim().length < 2) {
+            return res.status(400).json({ error: "Series name is required" });
+        }
+        
+        // Check if series exists
+        const existing = await db.get("SELECT id FROM series WHERE name = ?", [name]);
+        if (existing) {
+            return res.status(400).json({ error: "Series already exists" });
+        }
+        
+        await db.run(
+            "INSERT INTO series (name, description, sort_order) VALUES (?, ?, ?)",
+            [name.trim(), description || "", sort_order || 0]
+        );
+        
+        res.json({ success: true });
+    } catch (error) {
+        console.error("Create series error:", error);
+        res.status(500).json({ error: "Failed to create series" });
+    }
+});
     try {
         const { username, email, password, role } = req.body;
         
@@ -443,6 +471,33 @@ app.post('/api/admin/users/:userId/toggle', requireAdmin, async (req, res) => {
 
 // Create new user (admin only)
 app.post("/api/admin/users/create", requireAdmin, async (req, res) => {
+
+// Create new series (admin only)
+app.post("/api/admin/series", requireAdmin, async (req, res) => {
+    try {
+        const { name, description, sort_order } = req.body;
+        
+        if (!name || name.trim().length < 2) {
+            return res.status(400).json({ error: "Series name is required" });
+        }
+        
+        // Check if series exists
+        const existing = await db.get("SELECT id FROM series WHERE name = ?", [name]);
+        if (existing) {
+            return res.status(400).json({ error: "Series already exists" });
+        }
+        
+        await db.run(
+            "INSERT INTO series (name, description, sort_order) VALUES (?, ?, ?)",
+            [name.trim(), description || "", sort_order || 0]
+        );
+        
+        res.json({ success: true });
+    } catch (error) {
+        console.error("Create series error:", error);
+        res.status(500).json({ error: "Failed to create series" });
+    }
+});
     try {
         const { username, email, password, role } = req.body;
         
@@ -498,6 +553,33 @@ app.post('/api/admin/users/:userId/reset-password', requireAdmin, async (req, re
 
 // Create new user (admin only)
 app.post("/api/admin/users/create", requireAdmin, async (req, res) => {
+
+// Create new series (admin only)
+app.post("/api/admin/series", requireAdmin, async (req, res) => {
+    try {
+        const { name, description, sort_order } = req.body;
+        
+        if (!name || name.trim().length < 2) {
+            return res.status(400).json({ error: "Series name is required" });
+        }
+        
+        // Check if series exists
+        const existing = await db.get("SELECT id FROM series WHERE name = ?", [name]);
+        if (existing) {
+            return res.status(400).json({ error: "Series already exists" });
+        }
+        
+        await db.run(
+            "INSERT INTO series (name, description, sort_order) VALUES (?, ?, ?)",
+            [name.trim(), description || "", sort_order || 0]
+        );
+        
+        res.json({ success: true });
+    } catch (error) {
+        console.error("Create series error:", error);
+        res.status(500).json({ error: "Failed to create series" });
+    }
+});
     try {
         const { username, email, password, role } = req.body;
         
@@ -568,6 +650,33 @@ app.delete('/api/admin/users/:userId', requireAdmin, async (req, res) => {
 
 // Create new user (admin only)
 app.post("/api/admin/users/create", requireAdmin, async (req, res) => {
+
+// Create new series (admin only)
+app.post("/api/admin/series", requireAdmin, async (req, res) => {
+    try {
+        const { name, description, sort_order } = req.body;
+        
+        if (!name || name.trim().length < 2) {
+            return res.status(400).json({ error: "Series name is required" });
+        }
+        
+        // Check if series exists
+        const existing = await db.get("SELECT id FROM series WHERE name = ?", [name]);
+        if (existing) {
+            return res.status(400).json({ error: "Series already exists" });
+        }
+        
+        await db.run(
+            "INSERT INTO series (name, description, sort_order) VALUES (?, ?, ?)",
+            [name.trim(), description || "", sort_order || 0]
+        );
+        
+        res.json({ success: true });
+    } catch (error) {
+        console.error("Create series error:", error);
+        res.status(500).json({ error: "Failed to create series" });
+    }
+});
     try {
         const { username, email, password, role } = req.body;
         
