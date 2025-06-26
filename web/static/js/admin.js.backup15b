@@ -14,9 +14,6 @@ class AdminPanel {
         await this.loadSeries();
         await this.loadGames();
         await this.loadUsers();
-        this.setupSeriesForm();
-        loadSeriesDropdown();
-        setupFileAutoPopulate();
     }
 
     async checkAuth() {
@@ -107,10 +104,6 @@ class AdminPanel {
         }
 
         // Load data if needed
-        if (tabName === 'series') {
-            this.loadSeries();
-            loadSeriesDropdown();
-        }
         if (tabName === 'upload') {
             setTimeout(() => this.populateSeriesSelect(), 200);
         } else if (tabName === 'users') {
@@ -541,6 +534,23 @@ function closeCreateUserModal() {
 }
 
 // Handle create user form submission
+document.addEventListener("DOMContentLoaded", function() {
+    document.getElementById("create-user-form").addEventListener("submit", async (e) => {
+        e.preventDefault();
+        
+        const userData = {
+            username: document.getElementById("new-username").value,
+            email: document.getElementById("new-email").value,
+            password: document.getElementById("new-password").value,
+            role: document.getElementById("new-role").value
+        };
+        
+        try {
+            const response = await fetch("/api/admin/users/create", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                credentials: "include",
+                body: JSON.stringify(userData)
             });
             
             if (response.ok) {
@@ -558,16 +568,6 @@ function closeCreateUserModal() {
 });
 
 // Series Management
-    setupSeriesForm() {
-        const seriesForm = document.getElementById("series-form");
-        if (seriesForm) {
-            seriesForm.addEventListener("submit", (e) => {
-                e.preventDefault();
-                createSeries();
-            });
-        }
-    }
-
 async function createSeries() {
     const name = document.getElementById("series-name").value;
     const description = document.getElementById("series-description").value;
@@ -646,3 +646,16 @@ function setupFileAutoPopulate() {
     }
 }
 
+// Enhanced DOMContentLoaded
+document.addEventListener("DOMContentLoaded", function() {
+    const seriesForm = document.getElementById("series-form");
+    if (seriesForm) {
+        seriesForm.addEventListener("submit", function(e) {
+            e.preventDefault();
+            createSeries();
+        });
+    }
+    
+    loadSeriesDropdown();
+    setupFileAutoPopulate();
+});
