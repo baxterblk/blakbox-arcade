@@ -741,6 +741,52 @@ app.use((err, req, res, next) => {
 });
 
 // 404 handler
+// Admin Stats Route
+app.get("/api/admin/stats", requireAdmin, async (req, res) => {
+    try {
+        const userCount = await db.get("SELECT COUNT(*) as count FROM users");
+        const gameCount = await db.get("SELECT COUNT(*) as count FROM games");
+        const seriesCount = await db.get("SELECT COUNT(*) as count FROM series");
+        
+        res.json({
+            users: userCount.count,
+            games: gameCount.count,
+            series: seriesCount.count
+        });
+    } catch (error) {
+        console.error("Error fetching admin stats:", error);
+        res.status(500).json({ error: "Failed to fetch stats" });
+    }
+});
+
+// Admin Series Route (GET)
+app.get("/api/admin/series", requireAdmin, async (req, res) => {
+    try {
+        const series = await db.all("SELECT * FROM series ORDER BY sort_order ASC, name ASC");
+        res.json(series);
+    } catch (error) {
+        console.error("Error fetching admin series:", error);
+        res.status(500).json({ error: "Failed to fetch series" });
+    }
+});
+
+// Admin Games Route
+app.get("/api/admin/games", requireAdmin, async (req, res) => {
+    try {
+        const games = await db.all(`
+            SELECT g.*, s.name as series_name, u.username as uploaded_by_username
+            FROM games g
+            LEFT JOIN series s ON g.series_id = s.id
+            LEFT JOIN users u ON g.uploaded_by = u.id
+            ORDER BY g.created_at DESC
+        `);
+        res.json(games);
+    } catch (error) {
+        console.error("Error fetching admin games:", error);
+        res.status(500).json({ error: "Failed to fetch games" });
+    }
+});
+
 app.use((req, res) => {
     res.status(404).json({ error: 'Not found' });
 });
