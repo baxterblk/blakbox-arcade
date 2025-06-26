@@ -9,12 +9,41 @@ const cors = require('cors');
 require('dotenv').config();
 
 const Database = require('./database');
+const multer = require("multer");
 
 const app = express();
 const PORT = process.env.PORT || 3000;
 
 // Initialize database
 const db = new Database(process.env.DB_PATH);
+
+// Configure multer for file uploads
+const storage = multer.diskStorage({
+    destination: function (req, file, cb) {
+        const uploadDir = path.join(__dirname, "uploads");
+        if (!fs.existsSync(uploadDir)) {
+            fs.mkdirSync(uploadDir, { recursive: true });
+        }
+        cb(null, uploadDir);
+    },
+    filename: function (req, file, cb) {
+        cb(null, Date.now() + "-" + file.originalname);
+    }
+});
+
+const upload = multer({
+    storage: storage,
+    limits: { fileSize: 500 * 1024 * 1024 }, // 500MB
+    fileFilter: function (req, file, cb) {
+        const allowedExt = [".nes", ".snes", ".smc", ".sfc", ".gb", ".gbc", ".gba", ".n64", ".z64", ".gen", ".md", ".smd", ".zip", ".iso"];
+        const ext = path.extname(file.originalname).toLowerCase();
+        if (allowedExt.includes(ext)) {
+            cb(null, true);
+        } else {
+            cb(new Error("Invalid file type"));
+        }
+    }
+});
 
 // Middleware
 app.use(cors());
@@ -771,6 +800,7 @@ app.get("/api/admin/series", requireAdmin, async (req, res) => {
 });
 
 // Admin Games Route
+
 app.get("/api/admin/games", requireAdmin, async (req, res) => {
     try {
         const games = await db.all(`
@@ -786,6 +816,42 @@ app.get("/api/admin/games", requireAdmin, async (req, res) => {
         res.status(500).json({ error: "Failed to fetch games" });
     }
 });
+// Upload game (admin only)
+app.post("/api/admin/games/upload", requireAdmin, upload.single("gameFile"), async (req, res) => {
+    try {
+        if (!req.file) {
+            return res.status(400).json({ error: "No file uploaded" });
+        }
+        
+        const metadata = detectGameMetadata(req.file.originalname);
+        
+        const title = req.body.title || metadata.name;
+        const seriesId = req.body.series_id || null;
+        const description = req.body.description || metadata.description;
+        const system = metadata.system;
+        
+        // Move file to games directory
+        const gameDir = path.join(__dirname, "games", "roms");
+        if (!fs.existsSync(gameDir)) {
+            fs.mkdirSync(gameDir, { recursive: true });
+        }
+        
+        const finalPath = path.join(gameDir, req.file.filename);
+        fs.renameSync(req.file.path, finalPath);
+        
+        // Save to database
+        const result = await db.run(
+            "INSERT INTO games (series_id, title, filename, system, description, enabled, uploaded_by) VALUES (?, ?, ?, ?, ?, ?, ?)",
+            [seriesId, title, req.file.filename, system, description, 1, req.session.userId]
+        );
+        
+        res.json({ success: true, gameId: result.lastID, system: system });
+    } catch (error) {
+        console.error("Upload error:", error);
+        res.status(500).json({ error: "Upload failed: " + error.message });
+    }
+});
+
 
 app.use((req, res) => {
     res.status(404).json({ error: 'Not found' });
