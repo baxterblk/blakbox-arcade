@@ -162,6 +162,7 @@ class GameServer {
                 <div style="text-align: center; color: white; padding: 50px;">
                     <h3>Error Loading Game</h3>
                     <p>Failed to initialize emulator for ${game.title}</p>
+                    <p>Error: ${error.message}</p>
                     <p>Please try again or contact an administrator.</p>
                 </div>
             `;
@@ -181,19 +182,15 @@ class GameServer {
         emulatorContainer.style.height = '100%';
         emulatorEl.appendChild(emulatorContainer);
 
-        // Load EmulatorJS CSS and JS
+        // Load EmulatorJS CSS if not already loaded
         if (!document.querySelector('link[href*="emulator.css"]')) {
             const cssLink = document.createElement('link');
             cssLink.rel = 'stylesheet';
-            cssLink.href = '/emulators/emulator.css';
+            cssLink.href = '/data/emulator.css';
             document.head.appendChild(cssLink);
         }
 
-        if (!window.EJS_player) {
-            await this.loadScript('/emulators/loader.js');
-        }
-
-        // Map system to core
+        // Map system to core with better N64 support
         const coreMapping = {
             'nes': 'fceumm',
             'snes': 'snes9x',
@@ -201,62 +198,102 @@ class GameServer {
             'gbc': 'gambatte',
             'gba': 'mgba',
             'n64': 'mupen64plus_next',
+            'nintendo 64': 'mupen64plus_next',
             'genesis': 'genesis_plus_gx',
             'sms': 'genesis_plus_gx',
             'gg': 'genesis_plus_gx'
         };
 
-        const core = coreMapping[game.system] || 'fceumm';
+        const core = coreMapping[game.system.toLowerCase()] || 'fceumm';
 
-        // Initialize EmulatorJS
         try {
+            // Test ROM availability first
+            const romResponse = await fetch(`/api/games/${game.id}/rom`, { method: 'HEAD' });
+            if (!romResponse.ok) {
+                throw new Error(`ROM file not available (${romResponse.status}: ${romResponse.statusText})`);
+            }
+
+            // Configure EmulatorJS global variables
             window.EJS_player = '#emulator-container';
             window.EJS_gameUrl = `/api/games/${game.id}/rom`;
             window.EJS_core = core;
-            window.EJS_pathtodata = '/emulators/data/';
+            window.EJS_pathtodata = '/data/';
             window.EJS_gameID = game.id;
             window.EJS_gameName = game.title;
             window.EJS_color = '#667eea';
             window.EJS_startOnLoaded = true;
             window.EJS_fullscreenOnLoaded = false;
+            
+            // Enhanced error handling
+            window.EJS_onGameStart = () => {
+                console.log('Game started successfully');
+                this.showNotification(`${game.title} loaded successfully!`, 'success');
+            };
+            
+            window.EJS_onLoadState = () => {
+                console.log('Load state callback triggered');
+            };
+            
+            window.EJS_onSaveState = () => {
+                console.log('Save state callback triggered');
+            };
 
-            // Load the emulator
-            if (typeof EJS !== 'undefined') {
-                // If EJS is already loaded, restart it
-                if (this.emulator) {
-                    this.emulator.destroy();
+            // Load EmulatorJS if not already loaded
+            if (!window.EJS_player || typeof EJS === 'undefined') {
+                await this.loadScript('/data/loader.js');
+                
+                // Wait for EJS to be available
+                let attempts = 0;
+                while (typeof EJS === 'undefined' && attempts < 50) {
+                    await new Promise(resolve => setTimeout(resolve, 100));
+                    attempts++;
                 }
-                this.emulator = new EJS(window.EJS_player);
-            } else {
-                // Load EmulatorJS fresh
-                const script = document.createElement('script');
-                script.src = '/emulators/loader.js';
-                script.onload = () => {
-                    if (typeof EJS !== 'undefined') {
-                        this.emulator = new EJS(window.EJS_player);
-                    }
-                };
-                document.head.appendChild(script);
+                
+                if (typeof EJS === 'undefined') {
+                    throw new Error('EmulatorJS failed to load after 5 seconds');
+                }
             }
+
+            // Initialize the emulator
+            console.log(`Initializing ${core} core for ${game.system} game: ${game.title}`);
+            this.emulator = new EJS('#emulator-container');
+            
         } catch (error) {
             console.error('EmulatorJS initialization error:', error);
             emulatorEl.innerHTML = `
                 <div style="text-align: center; color: white; padding: 50px;">
-                    <h3>Emulator Error</h3>
-                    <p>Failed to initialize ${core} core for ${game.system.toUpperCase()}</p>
-                    <p>This game system may not be fully supported yet.</p>
-                    <p>ROM file: ${game.filename}</p>
+                    <h3>Network Error</h3>
+                    <p>Failed to load ${game.title}</p>
+                    <p>Core: ${core} (${game.system.toUpperCase()})</p>
+                    <p>Error: ${error.message}</p>
+                    <button onclick="location.reload()" style="margin-top: 20px; padding: 10px 20px; background: #667eea; color: white; border: none; border-radius: 5px; cursor: pointer;">
+                        Retry
+                    </button>
                 </div>
             `;
+            throw error;
         }
     }
 
     loadScript(src) {
         return new Promise((resolve, reject) => {
+            // Check if script is already loaded
+            const existingScript = document.querySelector(`script[src="${src}"]`);
+            if (existingScript) {
+                resolve();
+                return;
+            }
+
             const script = document.createElement('script');
             script.src = src;
-            script.onload = resolve;
-            script.onerror = reject;
+            script.onload = () => {
+                console.log(`Script loaded: ${src}`);
+                resolve();
+            };
+            script.onerror = (error) => {
+                console.error(`Failed to load script: ${src}`, error);
+                reject(new Error(`Failed to load script: ${src}`));
+            };
             document.head.appendChild(script);
         });
     }
@@ -348,6 +385,14 @@ class GameServer {
         // Clear emulator container
         const emulatorEl = document.getElementById('emulator');
         emulatorEl.innerHTML = '';
+
+        // Clear global EJS variables
+        delete window.EJS_player;
+        delete window.EJS_gameUrl;
+        delete window.EJS_core;
+        delete window.EJS_pathtodata;
+        delete window.EJS_gameID;
+        delete window.EJS_gameName;
 
         // Hide modal and save menu
         document.getElementById('game-modal').style.display = 'none';

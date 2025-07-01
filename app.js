@@ -47,20 +47,13 @@ const upload = multer({
 
 // Middleware
 app.use(cors());
-
-// UPLOAD ROUTE - EARLY PLACEMENT
-app.get("/api/admin/games/test-simple", (req, res) => { res.json({message: "Simple test works"}); });
-app.post("/api/admin/games/upload", (req, res) => {
-    console.log("UPLOAD ROUTE HIT!");
-    res.json({ success: true, message: "Upload endpoint working" });
-});
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(express.static(path.join(__dirname, 'web', 'static')));
 
 // Session configuration
 app.use(session({
-    secret: process.env.SESSION_SECRET,
+    secret: process.env.SESSION_SECRET || 'fallback-secret-key',
     resave: false,
     saveUninitialized: false,
     cookie: { 
@@ -96,6 +89,11 @@ app.get('/', (req, res) => {
 // Login page
 app.get('/login', (req, res) => {
     res.sendFile(path.join(__dirname, 'web', 'views', 'login.html'));
+});
+
+// Registration page
+app.get('/register', (req, res) => {
+    res.sendFile(path.join(__dirname, 'web', 'views', 'register.html'));
 });
 
 // Games page
@@ -235,11 +233,6 @@ app.post('/api/auth/register', async (req, res) => {
     }
 });
 
-// Registration page
-app.get('/register', (req, res) => {
-    res.sendFile(path.join(__dirname, 'web', 'views', 'register.html'));
-});
-
 // Get current user
 app.get('/api/auth/user', (req, res) => {
     if (req.session.userId) {
@@ -284,6 +277,125 @@ app.get('/api/games', requireAuth, async (req, res) => {
     } catch (error) {
         console.error('Games API error:', error);
         res.status(500).json({ error: 'Internal server error' });
+    }
+});
+
+// **CRITICAL: ROM Streaming Route - This was missing!**
+app.get('/api/games/:gameId/rom', requireAuth, async (req, res) => {
+    try {
+        const { gameId } = req.params;
+        const userId = req.session.userId;
+        
+        // Get game information
+        const game = await db.get('SELECT * FROM games WHERE id = ? AND enabled = 1', [gameId]);
+        if (!game) {
+            return res.status(404).json({ error: 'Game not found' });
+        }
+        
+        // Build full file path
+        const filePath = path.join(__dirname, 'uploads', game.filename);
+        
+        // Check if file exists
+        if (!fs.existsSync(filePath)) {
+            console.error('ROM file not found:', filePath);
+            return res.status(404).json({ error: 'ROM file not found on server' });
+        }
+        
+        // Record play session
+        try {
+            await db.run(
+                'INSERT INTO play_sessions (user_id, game_id, started_at) VALUES (?, ?, CURRENT_TIMESTAMP)',
+                [userId, gameId]
+            );
+        } catch (sessionError) {
+            console.log('Could not record play session:', sessionError);
+            // Continue serving the file even if session recording fails
+        }
+        
+        // Get file stats
+        const stat = fs.statSync(filePath);
+        const fileSize = stat.size;
+        const range = req.headers.range;
+        
+        // Set appropriate headers for ROM file
+        const ext = path.extname(game.filename).toLowerCase();
+        let contentType = 'application/octet-stream';
+        
+        // Set more specific content types for better browser handling
+        if (['.nes', '.snes', '.smc', '.sfc'].includes(ext)) {
+            contentType = 'application/x-nintendo-rom';
+        } else if (['.gb', '.gbc', '.gba'].includes(ext)) {
+            contentType = 'application/x-gameboy-rom';
+        } else if (['.n64', '.z64'].includes(ext)) {
+            contentType = 'application/x-n64-rom';
+        } else if (['.gen', '.md', '.smd'].includes(ext)) {
+            contentType = 'application/x-genesis-rom';
+        } else if (ext === '.zip') {
+            contentType = 'application/zip';
+        }
+        
+        // Handle range requests for large files
+        if (range) {
+            const parts = range.replace(/bytes=/, "").split("-");
+            const start = parseInt(parts[0], 10);
+            const end = parts[1] ? parseInt(parts[1], 10) : fileSize - 1;
+            
+            const chunksize = (end - start) + 1;
+            const file = fs.createReadStream(filePath, { start, end });
+            
+            res.writeHead(206, {
+                'Content-Range': `bytes ${start}-${end}/${fileSize}`,
+                'Accept-Ranges': 'bytes',
+                'Content-Length': chunksize,
+                'Content-Type': contentType,
+                'Cache-Control': 'public, max-age=3600',
+                'Access-Control-Allow-Origin': '*'
+            });
+            
+            file.pipe(res);
+        } else {
+            // Send entire file
+            res.writeHead(200, {
+                'Content-Length': fileSize,
+                'Content-Type': contentType,
+                'Cache-Control': 'public, max-age=3600',
+                'Access-Control-Allow-Origin': '*'
+            });
+            
+            fs.createReadStream(filePath).pipe(res);
+        }
+        
+    } catch (error) {
+        console.error('ROM streaming error:', error);
+        res.status(500).json({ error: 'Failed to stream ROM file' });
+    }
+});
+
+// Record play session
+app.post('/api/play-session', requireAuth, async (req, res) => {
+    try {
+        const { gameId } = req.body;
+        const userId = req.session.userId;
+        
+        if (!gameId) {
+            return res.status(400).json({ error: 'Game ID required' });
+        }
+        
+        // Verify game exists
+        const game = await db.get('SELECT * FROM games WHERE id = ? AND enabled = 1', [gameId]);
+        if (!game) {
+            return res.status(404).json({ error: 'Game not found' });
+        }
+        
+        await db.run(
+            'INSERT INTO play_sessions (user_id, game_id, started_at) VALUES (?, ?, CURRENT_TIMESTAMP)',
+            [userId, gameId]
+        );
+        
+        res.json({ success: true });
+    } catch (error) {
+        console.error('Play session error:', error);
+        res.status(500).json({ error: 'Failed to record play session' });
     }
 });
 
@@ -397,17 +509,39 @@ app.delete('/api/games/:gameId/save/:slot', requireAuth, async (req, res) => {
     }
 });
 
-// User Management API Endpoints
+// Admin API Routes
 
+// Admin Stats Route
+app.get("/api/admin/stats", requireAdmin, async (req, res) => {
+    try {
+        const userCount = await db.get("SELECT COUNT(*) as count FROM users");
+        const gameCount = await db.get("SELECT COUNT(*) as count FROM games");
+        const seriesCount = await db.get("SELECT COUNT(*) as count FROM series");
+        
+        res.json({
+            users: userCount.count,
+            games: gameCount.count,
+            series: seriesCount.count
+        });
+    } catch (error) {
+        console.error("Error fetching admin stats:", error);
+        res.status(500).json({ error: "Failed to fetch stats" });
+    }
+});
 
-// Get all users with stats
-app.get('/api/admin/users',  async (req, res) => {
-
-// Create new user (admin only)
-app.post("/api/admin/users/create",  async (req, res) => {
+// Admin Series Route (GET)
+app.get("/api/admin/series", requireAdmin, async (req, res) => {
+    try {
+        const series = await db.all("SELECT * FROM series ORDER BY sort_order ASC, name ASC");
+        res.json(series);
+    } catch (error) {
+        console.error("Error fetching admin series:", error);
+        res.status(500).json({ error: "Failed to fetch series" });
+    }
+});
 
 // Create new series (admin only)
-app.post("/api/admin/series",  async (req, res) => {
+app.post("/api/admin/series", requireAdmin, async (req, res) => {
     try {
         const { name, description, sort_order } = req.body;
         
@@ -432,33 +566,81 @@ app.post("/api/admin/series",  async (req, res) => {
         res.status(500).json({ error: "Failed to create series" });
     }
 });
+
+// Admin Games Route
+app.get("/api/admin/games", requireAdmin, async (req, res) => {
     try {
-        const { username, email, password, role } = req.body;
-        
-        // Validate input
-        if (!username || !password || username.length < 3 || password.length < 6) {
-            return res.status(400).json({ error: "Invalid input" });
-        }
-        
-        // Check if username exists
-        const existing = await db.get("SELECT id FROM users WHERE username = ?", [username]);
-        if (existing) {
-            return res.status(400).json({ error: "Username already exists" });
-        }
-        
-        // Hash password and create user
-        const passwordHash = await bcrypt.hash(password, 10);
-        await db.run(
-            "INSERT INTO users (username, email, password_hash, role, enabled) VALUES (?, ?, ?, ?, ?)",
-            [username, email || null, passwordHash, role || "user", 1]
-        );
-        
-        res.json({ success: true });
+        const games = await db.all(`
+            SELECT g.*, s.name as series_name, u.username as uploaded_by_username
+            FROM games g
+            LEFT JOIN series s ON g.series_id = s.id
+            LEFT JOIN users u ON g.uploaded_by = u.id
+            ORDER BY g.created_at DESC
+        `);
+        res.json(games);
     } catch (error) {
-        console.error("Create user error:", error);
-        res.status(500).json({ error: "Failed to create user" });
+        console.error("Error fetching admin games:", error);
+        res.status(500).json({ error: "Failed to fetch games" });
     }
 });
+
+// File upload route for games
+app.post("/api/admin/games/upload", requireAdmin, upload.single('gameFile'), async (req, res) => {
+    try {
+        if (!req.file) {
+            return res.status(400).json({ error: "No file uploaded" });
+        }
+        
+        const { title, description, series_id, system } = req.body;
+        
+        if (!title || !series_id) {
+            return res.status(400).json({ error: "Title and series are required" });
+        }
+        
+        // Auto-detect metadata if not provided
+        const metadata = detectGameMetadata(req.file.originalname);
+        
+        const gameData = {
+            title: title || metadata.name,
+            description: description || metadata.description,
+            system: system || metadata.system.toLowerCase(),
+            filename: req.file.filename,
+            original_filename: req.file.originalname,
+            file_size: req.file.size,
+            series_id: parseInt(series_id),
+            uploaded_by: req.session.userId,
+            enabled: 1
+        };
+        
+        const result = await db.run(`
+            INSERT INTO games (title, description, system, filename, original_filename, file_size, series_id, uploaded_by, enabled, created_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+        `, [
+            gameData.title,
+            gameData.description,
+            gameData.system,
+            gameData.filename,
+            gameData.original_filename,
+            gameData.file_size,
+            gameData.series_id,
+            gameData.uploaded_by,
+            gameData.enabled
+        ]);
+        
+        res.json({ 
+            success: true, 
+            message: "Game uploaded successfully",
+            gameId: result.lastID 
+        });
+        
+    } catch (error) {
+        console.error("Upload error:", error);
+        res.status(500).json({ error: "Failed to upload game" });
+    }
+});
+
+// Get all users with stats
+app.get('/api/admin/users', requireAdmin, async (req, res) => {
     try {
         const users = await db.all(`
             SELECT 
@@ -502,38 +684,8 @@ app.post("/api/admin/series",  async (req, res) => {
     }
 });
 
-// Toggle user enabled/disabled
-app.post('/api/admin/users/:userId/toggle',  async (req, res) => {
-
 // Create new user (admin only)
-app.post("/api/admin/users/create",  async (req, res) => {
-
-// Create new series (admin only)
-app.post("/api/admin/series",  async (req, res) => {
-    try {
-        const { name, description, sort_order } = req.body;
-        
-        if (!name || name.trim().length < 2) {
-            return res.status(400).json({ error: "Series name is required" });
-        }
-        
-        // Check if series exists
-        const existing = await db.get("SELECT id FROM series WHERE name = ?", [name]);
-        if (existing) {
-            return res.status(400).json({ error: "Series already exists" });
-        }
-        
-        await db.run(
-            "INSERT INTO series (name, description, sort_order) VALUES (?, ?, ?)",
-            [name.trim(), description || "", sort_order || 0]
-        );
-        
-        res.json({ success: true });
-    } catch (error) {
-        console.error("Create series error:", error);
-        res.status(500).json({ error: "Failed to create series" });
-    }
-});
+app.post("/api/admin/users/create", requireAdmin, async (req, res) => {
     try {
         const { username, email, password, role } = req.body;
         
@@ -561,6 +713,9 @@ app.post("/api/admin/series",  async (req, res) => {
         res.status(500).json({ error: "Failed to create user" });
     }
 });
+
+// Toggle user enabled/disabled
+app.post('/api/admin/users/:userId/toggle', requireAdmin, async (req, res) => {
     try {
         const { userId } = req.params;
         
@@ -585,68 +740,11 @@ app.post("/api/admin/series",  async (req, res) => {
 });
 
 // Reset user password
-app.post('/api/admin/users/:userId/reset-password',  async (req, res) => {
-
-// Create new user (admin only)
-app.post("/api/admin/users/create",  async (req, res) => {
-
-// Create new series (admin only)
-app.post("/api/admin/series",  async (req, res) => {
-    try {
-        const { name, description, sort_order } = req.body;
-        
-        if (!name || name.trim().length < 2) {
-            return res.status(400).json({ error: "Series name is required" });
-        }
-        
-        // Check if series exists
-        const existing = await db.get("SELECT id FROM series WHERE name = ?", [name]);
-        if (existing) {
-            return res.status(400).json({ error: "Series already exists" });
-        }
-        
-        await db.run(
-            "INSERT INTO series (name, description, sort_order) VALUES (?, ?, ?)",
-            [name.trim(), description || "", sort_order || 0]
-        );
-        
-        res.json({ success: true });
-    } catch (error) {
-        console.error("Create series error:", error);
-        res.status(500).json({ error: "Failed to create series" });
-    }
-});
-    try {
-        const { username, email, password, role } = req.body;
-        
-        // Validate input
-        if (!username || !password || username.length < 3 || password.length < 6) {
-            return res.status(400).json({ error: "Invalid input" });
-        }
-        
-        // Check if username exists
-        const existing = await db.get("SELECT id FROM users WHERE username = ?", [username]);
-        if (existing) {
-            return res.status(400).json({ error: "Username already exists" });
-        }
-        
-        // Hash password and create user
-        const passwordHash = await bcrypt.hash(password, 10);
-        await db.run(
-            "INSERT INTO users (username, email, password_hash, role, enabled) VALUES (?, ?, ?, ?, ?)",
-            [username, email || null, passwordHash, role || "user", 1]
-        );
-        
-        res.json({ success: true });
-    } catch (error) {
-        console.error("Create user error:", error);
-        res.status(500).json({ error: "Failed to create user" });
-    }
-});
+app.post('/api/admin/users/:userId/reset-password', requireAdmin, async (req, res) => {
     try {
         const { userId } = req.params;
         
-        const user = await db.get('SELECT username FROM users WHERE id = ?', [userId]);
+        const user = await db.get('SELECT username, email FROM users WHERE id = ?', [userId]);
         if (!user) {
             return res.status(404).json({ error: 'User not found' });
         }
@@ -682,64 +780,7 @@ app.post("/api/admin/series",  async (req, res) => {
 });
 
 // Delete user and all their data
-app.delete('/api/admin/users/:userId',  async (req, res) => {
-
-// Create new user (admin only)
-app.post("/api/admin/users/create",  async (req, res) => {
-
-// Create new series (admin only)
-app.post("/api/admin/series",  async (req, res) => {
-    try {
-        const { name, description, sort_order } = req.body;
-        
-        if (!name || name.trim().length < 2) {
-            return res.status(400).json({ error: "Series name is required" });
-        }
-        
-        // Check if series exists
-        const existing = await db.get("SELECT id FROM series WHERE name = ?", [name]);
-        if (existing) {
-            return res.status(400).json({ error: "Series already exists" });
-        }
-        
-        await db.run(
-            "INSERT INTO series (name, description, sort_order) VALUES (?, ?, ?)",
-            [name.trim(), description || "", sort_order || 0]
-        );
-        
-        res.json({ success: true });
-    } catch (error) {
-        console.error("Create series error:", error);
-        res.status(500).json({ error: "Failed to create series" });
-    }
-});
-    try {
-        const { username, email, password, role } = req.body;
-        
-        // Validate input
-        if (!username || !password || username.length < 3 || password.length < 6) {
-            return res.status(400).json({ error: "Invalid input" });
-        }
-        
-        // Check if username exists
-        const existing = await db.get("SELECT id FROM users WHERE username = ?", [username]);
-        if (existing) {
-            return res.status(400).json({ error: "Username already exists" });
-        }
-        
-        // Hash password and create user
-        const passwordHash = await bcrypt.hash(password, 10);
-        await db.run(
-            "INSERT INTO users (username, email, password_hash, role, enabled) VALUES (?, ?, ?, ?, ?)",
-            [username, email || null, passwordHash, role || "user", 1]
-        );
-        
-        res.json({ success: true });
-    } catch (error) {
-        console.error("Create user error:", error);
-        res.status(500).json({ error: "Failed to create user" });
-    }
-});
+app.delete('/api/admin/users/:userId', requireAdmin, async (req, res) => {
     try {
         const { userId } = req.params;
         
@@ -777,54 +818,6 @@ app.use((err, req, res, next) => {
 });
 
 // 404 handler
-// Admin Stats Route
-app.get("/api/admin/stats", requireAdmin, async (req, res) => {
-    try {
-        const userCount = await db.get("SELECT COUNT(*) as count FROM users");
-        const gameCount = await db.get("SELECT COUNT(*) as count FROM games");
-        const seriesCount = await db.get("SELECT COUNT(*) as count FROM series");
-        
-        res.json({
-            users: userCount.count,
-            games: gameCount.count,
-            series: seriesCount.count
-        });
-    } catch (error) {
-        console.error("Error fetching admin stats:", error);
-        res.status(500).json({ error: "Failed to fetch stats" });
-    }
-});
-
-// Admin Series Route (GET)
-app.get("/api/admin/series", requireAdmin, async (req, res) => {
-    try {
-        const series = await db.all("SELECT * FROM series ORDER BY sort_order ASC, name ASC");
-        res.json(series);
-    } catch (error) {
-        console.error("Error fetching admin series:", error);
-        res.status(500).json({ error: "Failed to fetch series" });
-    }
-});
-
-// Admin Games Route
-
-app.get("/api/admin/games", requireAdmin, async (req, res) => {
-    try {
-        const games = await db.all(`
-            SELECT g.*, s.name as series_name, u.username as uploaded_by_username
-            FROM games g
-            LEFT JOIN series s ON g.series_id = s.id
-            LEFT JOIN users u ON g.uploaded_by = u.id
-            ORDER BY g.created_at DESC
-        `);
-        res.json(games);
-    } catch (error) {
-        console.error("Error fetching admin games:", error);
-        res.status(500).json({ error: "Failed to fetch games" });
-    }
-});
-
-
 app.use((req, res) => {
     res.status(404).json({ error: 'Not found' });
 });
