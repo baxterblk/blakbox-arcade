@@ -1,0 +1,10 @@
+No ESLint configuration found - need to set up linting
+No TypeScript/type checking configured
+Missing test files - no test coverage
+No input validation middleware
+Database queries not optimized (no indexes)
+No error handling middleware
+No API documentation
+Security headers not configured
+No rate limiting implemented
+Code uses old CommonJS instead of ES modules
